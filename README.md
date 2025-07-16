@@ -13,18 +13,24 @@ A dead-simple web interface for GAMADV-XTD3 that turns complex command-line doma
    - Select "Create codespace on main"
    - Wait for setup to complete (2-3 minutes)
 
-2. **Configure GAMADV-XTD3**
+2. **Fix PATH if needed** (if you get "gam: command not found")
+   ```bash
+   chmod +x fix-gam.sh && ./fix-gam.sh
+   source ~/.bashrc
+   ```
+
+3. **Configure GAMADV-XTD3**
    ```bash
    gam version
    ```
    Follow the OAuth prompts to authorize with your Google Workspace
 
-3. **Start the Interface**
+4. **Start the Interface**
    ```bash
    npm start
    ```
    
-4. **Open in Browser**
+5. **Open in Browser**
    - Codespaces will auto-forward port 3000
    - Click the popup or go to the Ports tab
 
@@ -107,6 +113,12 @@ You get:
 
 ## 📝 Troubleshooting
 
+**"gam: command not found"**
+```bash
+chmod +x fix-gam.sh && ./fix-gam.sh
+source ~/.bashrc
+```
+
 **"GAMADV not configured"**
 - Run `gam version` in the terminal
 - Follow OAuth setup prompts
@@ -120,6 +132,15 @@ You get:
 - Check that `npm start` is running
 - Port 3000 should be forwarded in Codespaces
 - Try refreshing or opening in a new tab
+
+**Still having issues?**
+```bash
+# Manual setup
+export PATH="$HOME/bin:$PATH"
+chmod +x ~/gamadv-xtd3/gam
+ln -sf ~/gamadv-xtd3/gam ~/bin/gam
+gam version
+```
 
 ## 🤝 Contributing
 
