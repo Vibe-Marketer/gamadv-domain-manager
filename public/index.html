@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAMADV Domain Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 GAMADV Domain Manager</h1>
+        <p class="subtitle">Drop your domain list, click buttons, get results</p>
+        
+        <div id="config-check" class="status-card">
+            <h3>🔧 Configuration Status</h3>
+            <div id="config-status">Checking GAMADV configuration...</div>
+            <button id="check-config-btn" onclick="checkConfig()">Recheck Config</button>
+        </div>
+
+        <div class="main-interface">
+            <div class="input-section">
+                <h3>📝 Domain List</h3>
+                <textarea 
+                    id="domain-list" 
+                    placeholder="Paste your domains here, one per line:
+example1.com
+example2.com
+subdomain.example3.com"
+                    rows="8"
+                ></textarea>
+            </div>
+
+            <div class="actions-section">
+                <h3>🚀 Actions</h3>
+                <div class="action-buttons">
+                    <button id="check-btn" onclick="checkDomains()" class="btn primary">
+                        1. Check Domain Status
+                    </button>
+                    <button id="remove-users-btn" onclick="removeUsers()" class="btn warning" disabled>
+                        2. Remove Users (Expired Only)
+                    </button>
+                    <button id="delete-domains-btn" onclick="deleteDomains()" class="btn danger" disabled>
+                        3. Delete Expired Domains
+                    </button>
+                </div>
+                <div class="workflow-info">
+                    <small>💡 Run these in order. Each step unlocks the next.</small>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-section" class="results-section">
+            <h3>📊 Results</h3>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('domains')">Domain Status</button>
+                <button class="tab-btn" onclick="showTab('users')">User Removal</button>
+                <button class="tab-btn" onclick="showTab('deletion')">Domain Deletion</button>
+            </div>
+            
+            <div id="domains-tab" class="tab-content active">
+                <div id="domain-results" class="results"></div>
+            </div>
+            
+            <div id="users-tab" class="tab-content">
+                <div id="user-results" class="results"></div>
+            </div>
+            
+            <div id="deletion-tab" class="tab-content">
+                <div id="deletion-results" class="results"></div>
+            </div>
+        </div>
+
+        <div class="setup-help">
+            <details>
+                <summary>🆘 First Time Setup Help</summary>
+                <div class="help-content">
+                    <h4>Setting up Google Workspace Authentication:</h4>
+                    <ol>
+                        <li>Open terminal in Codespaces</li>
+                        <li>Run: <code>gam version</code></li>
+                        <li>Follow the OAuth prompts to authorize</li>
+                        <li>You'll need to visit a Google auth URL and paste back the code</li>
+                        <li>Once configured, refresh this page</li>
+                    </ol>
+                    <p><strong>Note:</strong> You need Google Workspace Super Admin access for domain management.</p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
