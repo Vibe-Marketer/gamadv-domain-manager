@@ -17,7 +17,39 @@ let lastResults = {};
 // Helper function to run GAM commands
 function runGamCommand(command) {
     return new Promise((resolve, reject) => {
-        exec(`gam ${command}`, (error, stdout, stderr) => {
+        // Try multiple possible GAM locations
+        const gamPaths = [
+            'gam',
+            '/usr/local/bin/gam',
+            '/home/node/bin/gamadv-xtd3/gam',
+            '~/bin/gamadv-xtd3/gam'
+        ];
+        
+        let gamPath = 'gam';
+        
+        // Find working GAM path
+        for (const testPath of gamPaths) {
+            try {
+                exec(`which ${testPath}`, (error) => {
+                    if (!error) {
+                        gamPath = testPath;
+                        return;
+                    }
+                });
+            } catch (e) {
+                // Continue to next path
+            }
+        }
+        
+        // If standard paths don't work, try the full path directly
+        if (!fs.existsSync('/usr/local/bin/gam') && fs.existsSync('/home/node/bin/gamadv-xtd3/gam')) {
+            gamPath = '/home/node/bin/gamadv-xtd3/gam';
+        }
+        
+        const fullCommand = `${gamPath} ${command}`;
+        console.log(`Running: ${fullCommand}`);
+        
+        exec(fullCommand, (error, stdout, stderr) => {
             if (error) {
                 reject({ error: error.message, stderr });
             } else {
@@ -33,6 +65,7 @@ app.get('/api/check-config', async (req, res) => {
         const result = await runGamCommand('version');
         res.json({ configured: true, version: result.stdout });
     } catch (error) {
+        console.log('GAM check failed:', error);
         res.json({ configured: false, error: error.error });
     }
 });
