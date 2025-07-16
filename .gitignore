@@ -1,0 +1,37 @@
+# Node modules
+node_modules/
+npm-debug.log*
+
+# GAMADV-XTD3 credentials and config
+gamadv-xtd3/
+client_secrets.json
+oauth2.txt
+oauth2service.json
+*.p12
+*.json
+
+# Logs
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Domain lists (potentially sensitive)
+domains.txt
+expired-domains.txt
