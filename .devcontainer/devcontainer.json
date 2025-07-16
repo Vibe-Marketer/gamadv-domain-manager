@@ -1,7 +1,7 @@
 {
   "name": "GAMADV Domain Manager",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
-  "postCreateCommand": "chmod +x setup.sh && ./setup.sh",
+  "postCreateCommand": "chmod +x setup.sh fix-gam.sh && ./setup.sh && echo 'Setup complete! If you get gam: command not found, run: ./fix-gam.sh'",
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": {
