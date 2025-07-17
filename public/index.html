@@ -28,6 +28,17 @@ example2.com
 subdomain.example3.com"
                     rows="8"
                 ></textarea>
+                
+                <div class="override-section">
+                    <label class="override-checkbox">
+                        <input type="checkbox" id="force-override" />
+                        <span class="checkmark"></span>
+                        Override safety checks - Allow cleanup of domains marked as "ACTIVE"
+                    </label>
+                    <div class="override-warning">
+                        ⚠️ <strong>Warning:</strong> This will enable user removal and domain deletion for ALL domains in your list, regardless of their reported status. Use only if you're certain these domains should be cleaned up.
+                    </div>
+                </div>
             </div>
 
             <div class="actions-section">
