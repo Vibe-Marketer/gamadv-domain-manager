@@ -27,20 +27,6 @@ function runGamCommand(command) {
         
         let gamPath = 'gam';
         
-        // Find working GAM path
-        for (const testPath of gamPaths) {
-            try {
-                exec(`which ${testPath}`, (error) => {
-                    if (!error) {
-                        gamPath = testPath;
-                        return;
-                    }
-                });
-            } catch (e) {
-                // Continue to next path
-            }
-        }
-        
         // If standard paths don't work, try the full path directly
         if (!fs.existsSync('/usr/local/bin/gam') && fs.existsSync('/home/node/bin/gamadv-xtd3/gam')) {
             gamPath = '/home/node/bin/gamadv-xtd3/gam';
@@ -76,10 +62,6 @@ app.post('/api/check-domains', async (req, res) => {
         const domains = req.body.split('\n').filter(d => d.trim());
         const results = [];
         
-        // Get all domains first
-        const allDomainsResult = await runGamCommand('print domains');
-        const allDomains = allDomainsResult.stdout;
-        
         for (const domain of domains) {
             const cleanDomain = domain.trim();
             if (!cleanDomain) continue;
@@ -87,19 +69,46 @@ app.post('/api/check-domains', async (req, res) => {
             try {
                 // Check if domain exists and get its status
                 const domainResult = await runGamCommand(`info domain ${cleanDomain}`);
-                const isExpired = domainResult.stdout.includes('EXPIRED') || 
-                                domainResult.stdout.includes('SUSPENDED');
+                const output = domainResult.stdout.toLowerCase();
+                
+                console.log(`Domain ${cleanDomain} output:`, domainResult.stdout);
+                
+                // More comprehensive expired detection
+                const isExpired = output.includes('expired') || 
+                                output.includes('suspended') ||
+                                output.includes('deleted') ||
+                                output.includes('unverified') ||
+                                output.includes('pending deletion') ||
+                                output.includes('verification failed') ||
+                                output.includes('domain not found') ||
+                                output.includes('mx verification failed');
+                
+                // Check if domain is technically active but actually problematic
+                const isProbablyExpired = output.includes('not verified') ||
+                                        output.includes('verification pending') ||
+                                        output.includes('ownership not verified') ||
+                                        output.includes('verification status: unverified');
+                
+                let status = 'ACTIVE';
+                if (isExpired) {
+                    status = 'EXPIRED';
+                } else if (isProbablyExpired) {
+                    status = 'NEEDS_REVIEW';  // Mark for manual review
+                }
                 
                 results.push({
                     domain: cleanDomain,
-                    status: isExpired ? 'EXPIRED' : 'ACTIVE',
-                    details: domainResult.stdout
+                    status: status,
+                    details: domainResult.stdout,
+                    rawOutput: domainResult.stdout  // Include full output for debugging
                 });
             } catch (error) {
+                // If GAM can't find the domain, it's probably expired/deleted
                 results.push({
                     domain: cleanDomain,
-                    status: 'NOT_FOUND',
-                    error: error.error
+                    status: 'EXPIRED',  // Treat not found as expired
+                    error: error.error,
+                    details: `Domain not found or inaccessible: ${error.error}`
                 });
             }
         }
@@ -118,10 +127,21 @@ app.post('/api/remove-users', async (req, res) => {
             return res.json({ success: false, error: 'No domain check results found. Run domain check first.' });
         }
         
-        const expiredDomains = lastResults.domains.filter(d => d.status === 'EXPIRED');
+        // Include EXPIRED, NEEDS_REVIEW, and NOT_FOUND domains
+        const problematicDomains = lastResults.domains.filter(d => 
+            d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
+        );
+        
+        if (problematicDomains.length === 0) {
+            return res.json({ 
+                success: false, 
+                error: 'No expired or problematic domains found. All domains appear to be active and working.' 
+            });
+        }
+        
         const results = [];
         
-        for (const domainInfo of expiredDomains) {
+        for (const domainInfo of problematicDomains) {
             try {
                 // Get users for this domain
                 const usersResult = await runGamCommand(`print users domain ${domainInfo.domain}`);
@@ -172,10 +192,12 @@ app.post('/api/delete-domains', async (req, res) => {
             return res.json({ success: false, error: 'No domain check results found. Run domain check first.' });
         }
         
-        const expiredDomains = lastResults.domains.filter(d => d.status === 'EXPIRED');
+        const problematicDomains = lastResults.domains.filter(d => 
+            d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
+        );
         const results = [];
         
-        for (const domainInfo of expiredDomains) {
+        for (const domainInfo of problematicDomains) {
             try {
                 const deleteResult = await runGamCommand(`delete domain ${domainInfo.domain}`);
                 results.push({
