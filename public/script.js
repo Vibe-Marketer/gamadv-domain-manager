@@ -99,14 +99,22 @@ async function checkDomains() {
             currentResults.domains = data.results;
             displayDomainResults(data.results);
             
-            // Enable next step if we have expired domains
-            const hasExpired = data.results.some(d => d.status === 'EXPIRED');
-            document.getElementById('remove-users-btn').disabled = !hasExpired;
+            // Check if force override is enabled
+            const forceOverride = document.getElementById('force-override').checked;
             
-            if (hasExpired) {
-                showNotification(`Found ${data.results.filter(d => d.status === 'EXPIRED').length} expired domain(s). Ready for user removal.`, 'warning');
+            // Enable next step if we have expired domains OR force override is checked
+            const hasExpired = data.results.some(d => d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW');
+            const canProceed = hasExpired || forceOverride;
+            
+            document.getElementById('remove-users-btn').disabled = !canProceed;
+            
+            if (forceOverride) {
+                showNotification(`Force override enabled. Ready to process ALL ${data.results.length} domain(s).`, 'warning');
+            } else if (hasExpired) {
+                const problematicCount = data.results.filter(d => d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW').length;
+                showNotification(`Found ${problematicCount} expired/problematic domain(s). Ready for user removal.`, 'warning');
             } else {
-                showNotification('No expired domains found. Nothing to clean up!', 'success');
+                showNotification('No expired domains found. Enable force override to process active domains.', 'info');
             }
         } else {
             showNotification(`Error: ${data.error}`, 'error');
@@ -125,8 +133,20 @@ async function removeUsers() {
         return;
     }
     
-    const expiredCount = currentResults.domains.filter(d => d.status === 'EXPIRED').length;
-    if (!confirm(`This will delete ALL users from ${expiredCount} expired domain(s). Are you sure?`)) {
+    const forceOverride = document.getElementById('force-override').checked;
+    let domainsToProcess;
+    
+    if (forceOverride) {
+        domainsToProcess = currentResults.domains;
+    } else {
+        domainsToProcess = currentResults.domains.filter(d => d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW');
+    }
+    
+    const confirmMessage = forceOverride 
+        ? `FORCE OVERRIDE: This will delete ALL users from ALL ${domainsToProcess.length} domain(s), regardless of status. Are you absolutely sure?`
+        : `This will delete ALL users from ${domainsToProcess.length} expired/problematic domain(s). Are you sure?`;
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
@@ -134,7 +154,9 @@ async function removeUsers() {
     
     try {
         const response = await fetch('/api/remove-users', {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ forceOverride })
         });
         
         const data = await response.json();
@@ -168,8 +190,20 @@ async function deleteDomains() {
         return;
     }
     
-    const expiredCount = currentResults.domains.filter(d => d.status === 'EXPIRED').length;
-    if (!confirm(`This will PERMANENTLY DELETE ${expiredCount} expired domain(s). This cannot be undone. Are you sure?`)) {
+    const forceOverride = document.getElementById('force-override').checked;
+    let domainsToProcess;
+    
+    if (forceOverride) {
+        domainsToProcess = currentResults.domains;
+    } else {
+        domainsToProcess = currentResults.domains.filter(d => d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW');
+    }
+    
+    const confirmMessage = forceOverride 
+        ? `FORCE OVERRIDE: This will PERMANENTLY DELETE ALL ${domainsToProcess.length} domain(s), regardless of status. This cannot be undone. Are you absolutely sure?`
+        : `This will PERMANENTLY DELETE ${domainsToProcess.length} expired/problematic domain(s). This cannot be undone. Are you sure?`;
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
@@ -177,7 +211,9 @@ async function deleteDomains() {
     
     try {
         const response = await fetch('/api/delete-domains', {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ forceOverride })
         });
         
         const data = await response.json();
@@ -216,11 +252,16 @@ function displayDomainResults(results) {
     
     const html = results.map(result => {
         const className = result.status === 'EXPIRED' ? 'result-error' : 
+                         result.status === 'NEEDS_REVIEW' ? 'result-warning' :
                          result.status === 'ACTIVE' ? 'result-success' : 'result-warning';
+        
+        const statusIcon = result.status === 'EXPIRED' ? '❌' : 
+                          result.status === 'NEEDS_REVIEW' ? '⚠️' :
+                          result.status === 'ACTIVE' ? '✅' : '❓';
         
         return `
             <div class="result-item ${className}">
-                <strong>${result.domain}</strong> - ${result.status}
+                ${statusIcon} <strong>${result.domain}</strong> - ${result.status}
                 ${result.error ? `<br><small>Error: ${result.error}</small>` : ''}
             </div>
         `;
@@ -303,6 +344,9 @@ function showNotification(message, type) {
         case 'error':
             notification.style.background = '#ef4444';
             break;
+        case 'info':
+            notification.style.background = '#3b82f6';
+            break;
         default:
             notification.style.background = '#6b7280';
     }
@@ -315,3 +359,22 @@ function showNotification(message, type) {
         notification.remove();
     }, 5000);
 }
+
+// Listen for force override checkbox changes
+document.addEventListener('DOMContentLoaded', function() {
+    const forceOverrideCheckbox = document.getElementById('force-override');
+    if (forceOverrideCheckbox) {
+        forceOverrideCheckbox.addEventListener('change', function() {
+            if (currentResults.domains && currentResults.domains.length > 0) {
+                // Re-enable buttons based on new force override state
+                const hasExpired = currentResults.domains.some(d => d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW');
+                const canProceed = hasExpired || this.checked;
+                document.getElementById('remove-users-btn').disabled = !canProceed;
+                
+                if (this.checked) {
+                    showNotification('Force override enabled. ALL domains will be processed regardless of status.', 'warning');
+                }
+            }
+        });
+    }
+});
