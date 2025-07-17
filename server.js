@@ -127,21 +127,31 @@ app.post('/api/remove-users', async (req, res) => {
             return res.json({ success: false, error: 'No domain check results found. Run domain check first.' });
         }
         
-        // Include EXPIRED, NEEDS_REVIEW, and NOT_FOUND domains
-        const problematicDomains = lastResults.domains.filter(d => 
-            d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
-        );
+        const forceOverride = req.body?.forceOverride || false;
         
-        if (problematicDomains.length === 0) {
+        // Determine which domains to process
+        let domainsToProcess;
+        if (forceOverride) {
+            // Process ALL domains when force override is enabled
+            domainsToProcess = lastResults.domains;
+            console.log('Force override enabled - processing ALL domains');
+        } else {
+            // Only process expired/problematic domains normally
+            domainsToProcess = lastResults.domains.filter(d => 
+                d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
+            );
+        }
+        
+        if (domainsToProcess.length === 0) {
             return res.json({ 
                 success: false, 
-                error: 'No expired or problematic domains found. All domains appear to be active and working.' 
+                error: 'No domains to process. Enable force override to process active domains.' 
             });
         }
         
         const results = [];
         
-        for (const domainInfo of problematicDomains) {
+        for (const domainInfo of domainsToProcess) {
             try {
                 // Get users for this domain
                 const usersResult = await runGamCommand(`print users domain ${domainInfo.domain}`);
@@ -155,6 +165,8 @@ app.post('/api/remove-users', async (req, res) => {
                             results.push({
                                 action: 'DELETE_USER',
                                 target: email,
+                                domain: domainInfo.domain,
+                                domainStatus: domainInfo.status,
                                 success: true,
                                 result: deleteResult.stdout
                             });
@@ -162,6 +174,8 @@ app.post('/api/remove-users', async (req, res) => {
                             results.push({
                                 action: 'DELETE_USER',
                                 target: email,
+                                domain: domainInfo.domain,
+                                domainStatus: domainInfo.status,
                                 success: false,
                                 error: error.error
                             });
@@ -172,6 +186,7 @@ app.post('/api/remove-users', async (req, res) => {
                 results.push({
                     action: 'GET_USERS',
                     target: domainInfo.domain,
+                    domainStatus: domainInfo.status,
                     success: false,
                     error: error.error
                 });
@@ -192,17 +207,37 @@ app.post('/api/delete-domains', async (req, res) => {
             return res.json({ success: false, error: 'No domain check results found. Run domain check first.' });
         }
         
-        const problematicDomains = lastResults.domains.filter(d => 
-            d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
-        );
+        const forceOverride = req.body?.forceOverride || false;
+        
+        // Determine which domains to process
+        let domainsToProcess;
+        if (forceOverride) {
+            // Process ALL domains when force override is enabled
+            domainsToProcess = lastResults.domains;
+            console.log('Force override enabled - deleting ALL domains');
+        } else {
+            // Only process expired/problematic domains normally
+            domainsToProcess = lastResults.domains.filter(d => 
+                d.status === 'EXPIRED' || d.status === 'NEEDS_REVIEW'
+            );
+        }
+        
+        if (domainsToProcess.length === 0) {
+            return res.json({ 
+                success: false, 
+                error: 'No domains to delete. Enable force override to delete active domains.' 
+            });
+        }
+        
         const results = [];
         
-        for (const domainInfo of problematicDomains) {
+        for (const domainInfo of domainsToProcess) {
             try {
                 const deleteResult = await runGamCommand(`delete domain ${domainInfo.domain}`);
                 results.push({
                     action: 'DELETE_DOMAIN',
                     target: domainInfo.domain,
+                    domainStatus: domainInfo.status,
                     success: true,
                     result: deleteResult.stdout
                 });
@@ -210,6 +245,7 @@ app.post('/api/delete-domains', async (req, res) => {
                 results.push({
                     action: 'DELETE_DOMAIN',
                     target: domainInfo.domain,
+                    domainStatus: domainInfo.status,
                     success: false,
                     error: error.error
                 });
