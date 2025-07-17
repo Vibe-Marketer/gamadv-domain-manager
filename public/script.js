@@ -166,18 +166,27 @@ async function removeUsers() {
             displayUserResults(data.results);
             showTab('users');
             
-            // Enable domain deletion
+            // ALWAYS enable domain deletion after user removal attempt
+            // Even if there were some errors, we should allow trying domain deletion
             document.getElementById('delete-domains-btn').disabled = false;
             
             const successCount = data.results.filter(r => r.success).length;
             const errorCount = data.results.filter(r => !r.success).length;
             
-            showNotification(`User removal complete: ${successCount} successful, ${errorCount} errors. Ready for domain deletion.`, 'warning');
+            if (errorCount > 0) {
+                showNotification(`User removal completed with errors: ${successCount} successful, ${errorCount} errors. You can still proceed with domain deletion.`, 'warning');
+            } else {
+                showNotification(`User removal complete: ${successCount} successful. Ready for domain deletion.`, 'success');
+            }
         } else {
             showNotification(`Error: ${data.error}`, 'error');
+            // Still enable delete domains button in case user wants to try anyway
+            document.getElementById('delete-domains-btn').disabled = false;
         }
     } catch (error) {
         showNotification(`Network error: ${error.message}`, 'error');
+        // Still enable delete domains button in case user wants to try anyway
+        document.getElementById('delete-domains-btn').disabled = false;
     } finally {
         setButtonLoading('remove-users-btn', false);
     }
@@ -378,3 +387,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Add manual button enabler for troubleshooting
+window.enableDeleteButton = function() {
+    document.getElementById('delete-domains-btn').disabled = false;
+    showNotification('Delete domains button manually enabled', 'info');
+}
